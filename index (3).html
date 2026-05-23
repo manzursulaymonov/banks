@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Markaziy Osiyo Banklari · Parser</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ivory:     #f4ede1;
+    --paper:     #ebe3d4;
+    --ink:       #1a1814;
+    --ink-soft:  #4a463d;
+    --rule:      #c9bfa9;
+    --amber:     #b8651a;
+    --amber-dim: #8a4a13;
+    --moss:      #4a5d3a;
+    --rust:      #8a3a1c;
+    --shadow:    rgba(26, 24, 20, 0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+
+  body {
+    font-family: 'Crimson Pro', Georgia, serif;
+    background: var(--ivory);
+    color: var(--ink);
+    line-height: 1.55;
+    min-height: 100vh;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(26, 24, 20, 0.06) 1px, transparent 0);
+    background-size: 24px 24px;
+  }
+
+  .container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 3rem 2rem 6rem;
+  }
+
+  /* ---------- Header ---------- */
+
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 2rem;
+    margin-bottom: 3rem;
+    position: relative;
+  }
+
+  .masthead-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  h1 {
+    font-family: 'Crimson Pro', serif;
+    font-weight: 600;
+    font-size: clamp(2.5rem, 5vw, 4.2rem);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 em {
+    font-style: italic;
+    font-weight: 400;
+    color: var(--amber);
+  }
+
+  .lede {
+    font-size: 1.15rem;
+    max-width: 56ch;
+    color: var(--ink-soft);
+    margin-top: 1.2rem;
+    font-style: italic;
+  }
+
+  /* ---------- Country grid ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .country-card {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 1.5rem 1.75rem;
+    position: relative;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    min-height: 220px;
+  }
+
+  .country-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px var(--shadow);
+  }
+
+  .country-card.active {
+    border-color: var(--amber);
+    border-width: 2px;
+    padding: calc(1.5rem - 1px) calc(1.75rem - 1px);
+  }
+
+  .country-card.loaded {
+    background: linear-gradient(135deg, var(--paper) 0%, #e4d9c0 100%);
+  }
+
+  .cc-flag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    color: var(--amber);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  .cc-name {
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.1;
+    margin-bottom: 0.25rem;
+  }
+
+  .cc-bank {
+    font-style: italic;
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .cc-status {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--rule);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cc-status .count {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .cc-status .count.zero { color: var(--rule); }
+  .cc-status .count.loaded { color: var(--amber); }
+
+  .cc-actions {
+    margin-top: 0.75rem;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  /* ---------- Buttons ---------- */
+
+  button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  button:hover:not(:disabled) {
+    background: var(--ink);
+    color: var(--ivory);
+  }
+
+  button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  button.primary {
+    background: var(--ink);
+    color: var(--ivory);
+    border-color: var(--ink);
+  }
+
+  button.primary:hover:not(:disabled) {
+    background: var(--amber);
+    border-color: var(--amber);
+  }
+
+  button.amber {
+    background: var(--amber);
+    color: var(--ivory);
+    border-color: var(--amber);
+  }
+
+  button.amber:hover:not(:disabled) {
+    background: var(--amber-dim);
+    border-color: var(--amber-dim);
+  }
+
+  button.ghost {
+    border-color: var(--rule);
+    color: var(--ink-soft);
+  }
+
+  /* ---------- Toolbar ---------- */
+
+  .toolbar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 2rem;
+  }
+
+  .toolbar .label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-right: 0.5rem;
+  }
+
+  .toolbar select {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+  }
+
+  .stats {
+    margin-left: auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+  }
+
+  .stats strong {
+    color: var(--amber);
+    font-weight: 600;
+  }
+
+  /* ---------- Log ---------- */
+
+  .log-panel {
+    background: var(--ink);
+    color: var(--ivory);
+    padding: 1.25rem 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    max-height: 240px;
+    overflow-y: auto;
+    border-left: 4px solid var(--amber);
+  }
+
+  .log-panel:empty::before {
+    content: '// log oqimi — fetch tugmasini bosing';
+    color: rgba(244, 237, 225, 0.4);
+    font-style: italic;
+  }
+
+  .log-line { display: block; padding: 1px 0; }
+  .log-line.info { color: var(--ivory); }
+  .log-line.success { color: #8fc97a; }
+  .log-line.warn { color: #f2c95c; }
+  .log-line.error { color: #f08066; }
+  .log-line.dim { color: rgba(244, 237, 225, 0.45); }
+  .log-line .ts { color: rgba(244, 237, 225, 0.35); margin-right: 0.5rem; }
+
+  /* ---------- Tables ---------- */
+
+  .results {
+    margin-bottom: 3rem;
+  }
+
+  .results h2 {
+    font-size: 1.8rem;
+    font-weight: 500;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .results h2 .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+    font-weight: 400;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--paper);
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-soft);
+    background: var(--ivory);
+    border-bottom: 2px solid var(--ink);
+    font-weight: 500;
+  }
+
+  tr:hover td {
+    background: var(--ivory);
+  }
+
+  td.mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
+  }
+
+  td.country-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    color: var(--amber);
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--ink-soft);
+    font-style: italic;
+    background: var(--paper);
+    border: 1px dashed var(--rule);
+  }
+
+  /* ---------- Manual paste modal ---------- */
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26, 24, 20, 0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--ivory);
+    max-width: 700px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 2rem;
+    border-top: 6px solid var(--amber);
+  }
+
+  .modal h3 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .modal p {
+    color: var(--ink-soft);
+    margin-bottom: 1.25rem;
+    font-size: 0.95rem;
+  }
+
+  .modal textarea {
+    width: 100%;
+    height: 240px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    padding: 1rem;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    color: var(--ink);
+    resize: vertical;
+    margin-bottom: 1rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+  }
+
+  /* ---------- Spinner ---------- */
+
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--rule);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 0.5rem;
+    vertical-align: middle;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Detail expand ---------- */
+
+  details {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 1rem 1.25rem;
+    margin-top: 1rem;
+  }
+
+  details summary {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+  }
+
+  details[open] summary { color: var(--ink); margin-bottom: 0.75rem; }
+
+  details pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+
+  /* ---------- Footer ---------- */
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.05em;
+    line-height: 1.8;
+  }
+
+  footer a { color: var(--amber); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* Mobile */
+  @media (max-width: 640px) {
+    .container { padding: 2rem 1.25rem 4rem; }
+    table { font-size: 0.8rem; }
+    th, td { padding: 0.5rem 0.6rem; }
+    .toolbar { flex-direction: column; align-items: stretch; }
+    .stats { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="masthead-meta">
+      <span>Centralis Asiatica · Bancorum</span>
+      <span id="date-line">—</span>
+    </div>
+    <h1>Markaziy Osiyo <em>banklari</em></h1>
+    <p class="lede">
+      To'rt davlatning markaziy banki saytlaridan tijorat banklari
+      ro'yxatini brauzeringizdan to'g'ridan-to'g'ri tortib oladi. CORS
+      cheklovini chetlab o'tish uchun ochiq proxy ishlatiladi.
+    </p>
+  </header>
+
+  <!-- Country cards -->
+  <section class="grid" id="country-grid"></section>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <span class="label">CORS proxy</span>
+    <select id="proxy-select">
+      <option value="allorigins">api.allorigins.win</option>
+      <option value="corsproxy">corsproxy.io</option>
+      <option value="codetabs">api.codetabs.com</option>
+      <option value="none">Yo'q (to'g'ridan-to'g'ri — odatda blok)</option>
+    </select>
+    <button class="primary" id="fetch-all">Hammasini tortish</button>
+    <button id="clear-all" class="ghost">Tozalash</button>
+    <div class="stats" id="stats">
+      Jami: <strong>0</strong> ta yozuv
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-panel" id="log"></div>
+
+  <!-- Results -->
+  <section class="results">
+    <h2>
+      Natijalar
+      <span class="count" id="results-count">0 ta yozuv</span>
+    </h2>
+    <div id="results-body">
+      <div class="empty-state">
+        Hali hech qaysi davlat tortilmagan. Yuqoridagi kartochkalarda
+        <em>Tortish</em> tugmasini bosing yoki <em>Hammasini tortish</em>.
+      </div>
+    </div>
+  </section>
+
+  <!-- Export -->
+  <div class="toolbar">
+    <span class="label">Eksport</span>
+    <button id="export-json">JSON yuklab olish</button>
+    <button id="export-csv" class="amber">CSV yuklab olish</button>
+    <button id="export-clipboard" class="ghost">JSON copy</button>
+  </div>
+
+  <footer>
+    <div>
+      Manbalar: cbu.uz · nationalbank.kz · nbkr.kg · nbt.tj
+    </div>
+    <div>
+      Eslatma: brauzer ichida ishlaydi, ma'lumot hech qayerga yuborilmaydi.
+      State sahifa yopilganda yo'qoladi — eksport qiling.
+    </div>
+  </footer>
+
+</div>
+
+<!-- Manual paste modal -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3>HTML manual qo'yish</h3>
+    <p>
+      CORS proxy ishlamasa, sahifani brauzerda oching, <kbd>Ctrl+U</kbd>
+      bilan source ko'ring, hammasini nusxa olib quyiga joylang.
+    </p>
+    <p id="modal-url" style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--amber);"></p>
+    <textarea id="modal-html" placeholder="HTML kodini bu yerga joylang..."></textarea>
+    <div class="modal-actions">
+      <button class="ghost" onclick="closeModal()">Bekor qilish</button>
+      <button class="primary" id="modal-parse">Parse qilish</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =============================================================================
+// MARKAZIY OSIYO BANKLARI · PARSER
+// Vanilla JS · CORS proxy via fetch · DOMParser
+// =============================================================================
+
+// ----------------------------------------------------------------------------
+// Davlatlar konfiguratsiyasi
+// ----------------------------------------------------------------------------
+
+const COUNTRIES = {
+  UZ: {
+    code: 'UZ',
+    name: "O'zbekiston",
+    bank: 'Markaziy Bank (CBU)',
+    flag: 'UZ · UZB',
+    listUrl: 'https://cbu.uz/uz/credit-organizations/banks/head-offices/',
+    detailUrlPattern: /\/uz\/credit-organizations\/banks\/head-offices\/(?:ao|goss|chb)\/[^/"\s]+\//g,
+    baseUrl: 'https://cbu.uz',
+  },
+  KZ: {
+    code: 'KZ',
+    name: "Qozog'iston",
+    bank: 'Ulttyq Banki (NBK)',
+    flag: 'KZ · KAZ',
+    listUrl: 'https://nationalbank.kz/ru/page/spravochnik-bik-rk-ps',
+  },
+  KG: {
+    code: 'KG',
+    name: 'Qirg\u02bciziston',
+    bank: 'Uluttuk Banky (NBKR)',
+    flag: 'KG · KGZ',
+    listUrl: 'https://www.nbkr.kg/index1.jsp?item=71&lang=RUS',
+    bicUrl:  'https://www.nbkr.kg/index1.jsp?item=1435&lang=RUS',
+  },
+  TJ: {
+    code: 'TJ',
+    name: 'Tojikiston',
+    bank: 'Bonki Millii (NBT)',
+    flag: 'TJ · TJK',
+    listUrl: 'https://nbt.tj/ru/banking_system/banks.php',
+  },
+};
+
+// ----------------------------------------------------------------------------
+// CORS proxy variantlari
+// ----------------------------------------------------------------------------
+
+const PROXIES = {
+  allorigins: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  corsproxy:  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  codetabs:   url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  none:       url => url,
+};
+
+// ----------------------------------------------------------------------------
+// Global state (xotirada)
+// ----------------------------------------------------------------------------
+
+const state = {
+  banks: { UZ: [], KZ: [], KG: [], TJ: [] },
+  loading: { UZ: false, KZ: false, KG: false, TJ: false },
+  manualTarget: null, // qaysi davlat manual HTML kutmoqda
+};
+
+// ----------------------------------------------------------------------------
+// Logger
+// ----------------------------------------------------------------------------
+
+function log(msg, level = 'info') {
+  const panel = document.getElementById('log');
+  const line = document.createElement('span');
+  line.className = `log-line ${level}`;
+  const ts = new Date().toTimeString().slice(0, 8);
+  line.innerHTML = `<span class="ts">${ts}</span>${msg}`;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('log').innerHTML = '';
+}
+
+// ----------------------------------------------------------------------------
+// HTTP — proxy orqali
+// ----------------------------------------------------------------------------
+
+async function fetchViaProxy(url, opts = {}) {
+  const proxyKey = document.getElementById('proxy-select').value;
+  const wrapped = PROXIES[proxyKey](url);
+  log(`GET ${url.length > 70 ? url.slice(0, 67) + '...' : url}`, 'dim');
+  const r = await fetch(wrapped, {
+    headers: { 'Accept': 'text/html,application/xhtml+xml,*/*' },
+    ...opts,
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return await r.text();
+}
+
+// ----------------------------------------------------------------------------
+// Yordamchi funksiyalar
+// ----------------------------------------------------------------------------
+
+function parseHtml(html) {
+  return new DOMParser().parseFromString(html, 'text/html');
+}
+
+function clean(s) {
+  return (s || '').replace(/\s+/g, ' ').trim();
+}
+
+function stripQuotes(s) {
+  return clean(s).replace(/["'«»\u201c\u201d\u201e\u201f]/g, '').trim();
+}
+
+function extractField(text, pattern) {
+  const m = text.match(pattern);
+  return m ? clean(m[1]) : '';
+}
+
+// ----------------------------------------------------------------------------
+// UZ — CBU parser
+// ----------------------------------------------------------------------------
+
+function parseUzDetail(html, url) {
+  const doc = parseHtml(html);
+  const h1 = doc.querySelector('h1');
+  let name = h1 ? clean(h1.textContent) : '';
+  name = name.replace(/\s*-\s*O[\u2018'`]?zbekiston.*/i, '');
+  name = stripQuotes(name);
+  if (!name) return null;
+
+  // Detail blokini topishga harakat: hamma asosiy matnni olamiz
+  const blob = doc.body ? doc.body.textContent.replace(/\s+/g, ' ').trim() : '';
+  // Aslida har bir maydon yangi qatorda, lekin biz \n yo'qotdik —
+  // shuning uchun ko'p qatorli regex o'rniga "Field: ... Field:" pattern qo'llaymiz
+  const text = doc.body ? doc.body.innerText || doc.body.textContent : '';
+
+  const patterns = {
+    address:   /Manzil:\s*([^\n]+?)(?:\s{2,}|\s+(?:Aloqa|Ishonch|Litsenziya|INN|E-mail|Veb)|$)/i,
+    phone:     /Aloqa telefon raqami:\s*([^\n]+?)(?:\s{2,}|\s+(?:Ishonch|Litsenziya|INN|E-mail|Veb)|$)/i,
+    helpline:  /Ishonch telefoni:\s*([^\n]+?)(?:\s{2,}|\s+(?:Litsenziya|INN|E-mail|Veb)|$)/i,
+    license:   /Litsenziya raqami:\s*(\d+\s*,\s*\d{1,2}\.\d{1,2}\.\d{4})/i,
+    inn:       /INN:\s*(\d+)/i,
+    email:     /E-mail:\s*([\w@\.\-]+)/i,
+    website:   /Veb[s\-]?ite:\s*([\w@\.\-:\/]+)/i,
+    updated:   /Yangilangan sana:\s*([^\n]+?)(?:\s{2,}|$)/i,
+  };
+
+  const fields = {};
+  for (const [k, p] of Object.entries(patterns)) {
+    const m = text.match(p);
+    if (m) fields[k] = clean(m[1]);
+  }
+
+  let licenseNo = '', licenseDate = '';
+  if (fields.license) {
+    const parts = fields.license.split(/\s*,\s*/);
+    licenseNo = parts[0] || '';
+    licenseDate = (parts[1] || '').replace(/\s*y\.?\s*$/i, '');
+  }
+
+  return {
+    country: 'UZ',
+    name,
+    short_name: '',
+    bik: '',
+    swift: '',
+    inn: fields.inn || '',
+    license_no: licenseNo,
+    license_date: licenseDate,
+    address: fields.address || '',
+    phone: fields.phone || '',
+    email: fields.email || '',
+    website: fields.website || '',
+    source_url: url,
+    raw: fields,
+  };
+}
+
+async function fetchUz() {
+  const c = COUNTRIES.UZ;
+  log(`UZ: ${c.listUrl} yuklash...`, 'info');
+  const html = await fetchViaProxy(c.listUrl);
+  const matches = new Set();
+  for (const m of html.matchAll(c.detailUrlPattern)) {
+    matches.add(new URL(m[0], c.baseUrl).href);
+  }
+  log(`UZ: ${matches.size} ta bank sahifasi topildi`, 'success');
+
+  const banks = [];
+  for (const url of [...matches].sort()) {
+    try {
+      const detail = await fetchViaProxy(url);
+      const bank = parseUzDetail(detail, url);
+      if (bank) {
+        banks.push(bank);
+        log(`  \u2713 ${bank.name}`, 'dim');
+      }
+      await sleep(300); // polite
+    } catch (e) {
+      log(`  \u2717 ${url}: ${e.message}`, 'warn');
+    }
+  }
+  return banks;
+}
+
+// ----------------------------------------------------------------------------
+// KZ — NBK parser
+// ----------------------------------------------------------------------------
+
+function parseKzList(html, url) {
+  const doc = parseHtml(html);
+  const banks = [];
+  for (const table of doc.querySelectorAll('table')) {
+    const rows = table.querySelectorAll('tr');
+    if (rows.length < 2) continue;
+    const headerCells = [...rows[0].querySelectorAll('th, td')]
+      .map(c => clean(c.textContent).toLowerCase());
+    const bikIdx  = headerCells.findIndex(h => h.includes('бик') || h.includes('bic'));
+    const nameIdx = headerCells.findIndex(h => h.includes('наим') || h.includes('name'));
+    if (bikIdx < 0 || nameIdx < 0) continue;
+
+    for (let i = 1; i < rows.length; i++) {
+      const cells = [...rows[i].querySelectorAll('td, th')].map(c => clean(c.textContent));
+      if (cells.length <= Math.max(bikIdx, nameIdx)) continue;
+      banks.push({
+        country: 'KZ',
+        name: cells[nameIdx],
+        short_name: '',
+        bik: cells[bikIdx],
+        swift: '',
+        inn: '',
+        license_no: '',
+        license_date: '',
+        address: '',
+        phone: '',
+        email: '',
+        website: '',
+        source_url: url,
+        raw: cells.reduce((a, c, i) => (a[`col_${i}`] = c, a), {}),
+      });
+    }
+    if (banks.length > 0) break; // birinchi mos jadval yetadi
+  }
+  return banks;
+}
+
+async function fetchKz() {
+  const c = COUNTRIES.KZ;
+  log(`KZ: ${c.listUrl} yuklash...`, 'info');
+  const html = await fetchViaProxy(c.listUrl);
+  const banks = parseKzList(html, c.listUrl);
+
+  if (banks.length === 0) {
+    // PDF/XLSX havolasi izlash
+    const doc = parseHtml(html);
+    for (const a of doc.querySelectorAll('a[href]')) {
+      const href = a.getAttribute('href');
+      if (/\.(pdf|xlsx|xls)$/i.test(href)) {
+        log(`KZ: HTML jadval yo'q. Fayl: ${href}`, 'warn');
+        banks.push({
+          country: 'KZ',
+          name: `[Fayl: ${new URL(href, c.listUrl).href}]`,
+          short_name: '',
+          bik: '',
+          swift: '',
+          inn: '',
+          license_no: '',
+          license_date: '',
+          address: '',
+          phone: '',
+          email: '',
+          website: '',
+          source_url: new URL(href, c.listUrl).href,
+          raw: { note: 'BIK справочник faylda. Qo\'l bilan yuklab oling' },
+        });
+        break;
+      }
+    }
+  }
+
+  log(`KZ: ${banks.length} ta yozuv`, banks.length > 0 ? 'success' : 'warn');
+  return banks;
+}
+
+// ----------------------------------------------------------------------------
+// KG — NBKR parser
+// ----------------------------------------------------------------------------
+
+const BANK_RE_KG = /банк|bank/i;
+
+function parseKgList(html, url) {
+  const doc = parseHtml(html);
+  const banks = [];
+  const main = doc.querySelector('#content') || doc.querySelector('#centerColumn') || doc.body;
+  for (const table of main.querySelectorAll('table')) {
+    for (const tr of table.querySelectorAll('tr')) {
+      // Headerni o'tkazib yuborish
+      if (tr.querySelector('th') && !tr.querySelector('td')) continue;
+      const cells = [...tr.querySelectorAll('td, th')].map(c => clean(c.textContent));
+      const text = cells.join(' | ');
+      if (!text || text.length < 10) continue;
+      if (!BANK_RE_KG.test(text)) continue;
+      if (/наименование|название/i.test(text) && cells.every(c => c.length < 30)) continue;
+
+      const licMatch = text.match(/№?\s*(\d{2,4})\b/);
+      const dtMatch = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+      const name = cells.find(c =>
+        c.length > 5 &&
+        BANK_RE_KG.test(c) &&
+        !/наименование/i.test(c)
+      );
+      if (!name) continue;
+
+      banks.push({
+        country: 'KG',
+        name,
+        short_name: '',
+        bik: '',
+        swift: '',
+        inn: '',
+        license_no: licMatch ? licMatch[1] : '',
+        license_date: dtMatch ? dtMatch[1] : '',
+        address: '',
+        phone: '',
+        email: '',
+        website: '',
+        source_url: url,
+        raw: { cells },
+      });
+    }
+  }
+  return banks;
+}
+
+async function fetchKg() {
+  const c = COUNTRIES.KG;
+  log(`KG: ${c.listUrl} (banklar)...`, 'info');
+  const listHtml = await fetchViaProxy(c.listUrl);
+  const banks = parseKgList(listHtml, c.listUrl);
+  log(`KG: ${banks.length} ta bank topildi`, 'success');
+
+  // BIC справочник'ni yuklash
+  try {
+    log(`KG: BIC справочник yuklash...`, 'info');
+    const bicHtml = await fetchViaProxy(c.bicUrl);
+    const bicMap = {};
+    const bicDoc = parseHtml(bicHtml);
+    for (const table of bicDoc.querySelectorAll('table')) {
+      for (const tr of table.querySelectorAll('tr')) {
+        const cells = [...tr.querySelectorAll('td, th')].map(x => clean(x.textContent));
+        if (cells.length < 2) continue;
+        const bik = cells.find(c => /^\d{6,9}$/.test(c));
+        const swift = cells.find(c => /^[A-Z]{6}[A-Z0-9]{2,5}$/.test(c));
+        const name = cells.find(c => c.length > 5 && BANK_RE_KG.test(c));
+        if (name && (bik || swift)) {
+          bicMap[name.toLowerCase()] = { bik: bik || '', swift: swift || '' };
+        }
+      }
+    }
+    // Fuzzy match
+    for (const b of banks) {
+      const keyClean = b.name.toLowerCase().replace(/["'«»\u201c\u201d\u201e\u201f()]|оао|зао|осоо/g, ' ');
+      const keyWords = keyClean.split(/\s+/).filter(w => w.length >= 4 && !/банк|bank/i.test(w));
+      for (const [bicName, data] of Object.entries(bicMap)) {
+        const bicClean = bicName.replace(/["'«»\u201c\u201d\u201e\u201f()]/g, ' ');
+        if (keyWords.some(w => bicClean.includes(w))) {
+          b.bik = data.bik;
+          b.swift = data.swift;
+          break;
+        }
+      }
+    }
+    const matched = banks.filter(b => b.bik || b.swift).length;
+    log(`KG: ${matched}/${banks.length} BIK match qilindi`, 'success');
+  } catch (e) {
+    log(`KG: BIC справочник yuklab bo'lmadi: ${e.message}`, 'warn');
+  }
+
+  return banks;
+}
+
+// ----------------------------------------------------------------------------
+// TJ — NBT parser
+// ----------------------------------------------------------------------------
+
+const BANK_RE_TJ = /банк|бонк|bonk|bank/i;
+
+function parseTjList(html, url) {
+  const doc = parseHtml(html);
+  const banks = [];
+  const content = doc.querySelector('.content, .main, .page-content') || doc.body;
+
+  // Table variant
+  for (const table of content.querySelectorAll('table')) {
+    for (const tr of table.querySelectorAll('tr')) {
+      const cells = [...tr.querySelectorAll('td, th')].map(c => clean(c.textContent));
+      const text = cells.join(' ');
+      if (!BANK_RE_TJ.test(text)) continue;
+      const name = cells.find(c => BANK_RE_TJ.test(c));
+      if (name && !/^(банк|bank|bonk|бонк)$/i.test(name)) {
+        banks.push({
+          country: 'TJ',
+          name,
+          short_name: '',
+          bik: '',
+          swift: '',
+          inn: '',
+          license_no: '',
+          license_date: '',
+          address: '',
+          phone: '',
+          email: '',
+          website: '',
+          source_url: url,
+          raw: { cells },
+        });
+      }
+    }
+  }
+
+  // List variant — agar table'dan topa olmasak
+  if (banks.length === 0) {
+    for (const tag of content.querySelectorAll('li, p')) {
+      const text = clean(tag.textContent);
+      if (BANK_RE_TJ.test(text) && text.length > 10 && text.length < 300) {
+        const lic = text.match(/№\s*(\d+)/);
+        const dt = text.match(/(\d{2}\.\d{2}\.\d{4})/);
+        banks.push({
+          country: 'TJ',
+          name: text.slice(0, 200),
+          short_name: '',
+          bik: '',
+          swift: '',
+          inn: '',
+          license_no: lic ? lic[1] : '',
+          license_date: dt ? dt[1] : '',
+          address: '',
+          phone: '',
+          email: '',
+          website: '',
+          source_url: url,
+          raw: { text },
+        });
+      }
+    }
+  }
+  return banks;
+}
+
+async function fetchTj() {
+  const c = COUNTRIES.TJ;
+  log(`TJ: ${c.listUrl} yuklash...`, 'info');
+  const html = await fetchViaProxy(c.listUrl);
+  const banks = parseTjList(html, c.listUrl);
+  log(`TJ: ${banks.length} ta bank`, banks.length > 0 ? 'success' : 'warn');
+  return banks;
+}
+
+// ----------------------------------------------------------------------------
+// Orchestrator
+// ----------------------------------------------------------------------------
+
+const FETCHERS = { UZ: fetchUz, KZ: fetchKz, KG: fetchKg, TJ: fetchTj };
+
+const PARSERS = {
+  UZ: (html, url) => {
+    // Manual paste: list page yoki detail page bo'lishi mumkin
+    const b = parseUzDetail(html, url || COUNTRIES.UZ.listUrl);
+    return b ? [b] : [];
+  },
+  KZ: (html, url) => parseKzList(html, url || COUNTRIES.KZ.listUrl),
+  KG: (html, url) => parseKgList(html, url || COUNTRIES.KG.listUrl),
+  TJ: (html, url) => parseTjList(html, url || COUNTRIES.TJ.listUrl),
+};
+
+async function loadCountry(code) {
+  if (state.loading[code]) return;
+  state.loading[code] = true;
+  renderCards();
+  try {
+    const banks = await FETCHERS[code]();
+    state.banks[code] = banks;
+    log(`${code}: ${banks.length} ta yozuv saqlandi`, 'success');
+  } catch (e) {
+    log(`${code} xato: ${e.message}`, 'error');
+  } finally {
+    state.loading[code] = false;
+    renderCards();
+    renderResults();
+  }
+}
+
+async function loadAll() {
+  clearLog();
+  log('Hammasi yuklanmoqda...', 'info');
+  for (const code of Object.keys(COUNTRIES)) {
+    await loadCountry(code);
+  }
+  log(`Tugadi. Jami: ${totalCount()} ta yozuv`, 'success');
+}
+
+function totalCount() {
+  return Object.values(state.banks).reduce((a, b) => a + b.length, 0);
+}
+
+function allBanks() {
+  return Object.values(state.banks).flat();
+}
+
+function clearAll() {
+  for (const code of Object.keys(COUNTRIES)) state.banks[code] = [];
+  clearLog();
+  log('Tozalandi', 'dim');
+  renderCards();
+  renderResults();
+}
+
+// ----------------------------------------------------------------------------
+// UI — kartochkalar
+// ----------------------------------------------------------------------------
+
+function renderCards() {
+  const grid = document.getElementById('country-grid');
+  grid.innerHTML = '';
+  for (const [code, c] of Object.entries(COUNTRIES)) {
+    const count = state.banks[code].length;
+    const loading = state.loading[code];
+
+    const card = document.createElement('div');
+    card.className = `country-card${count > 0 ? ' loaded' : ''}${loading ? ' active' : ''}`;
+    card.innerHTML = `
+      <div class="cc-flag">${c.flag}</div>
+      <div class="cc-name">${c.name}</div>
+      <div class="cc-bank">${c.bank}</div>
+      <div class="cc-actions">
+        <button class="primary" data-action="fetch" data-code="${code}" ${loading ? 'disabled' : ''}>
+          ${loading ? '<span class="spinner"></span>Tortilmoqda' : (count > 0 ? 'Qayta tortish' : 'Tortish')}
+        </button>
+        <button class="ghost" data-action="manual" data-code="${code}">
+          Manual HTML
+        </button>
+      </div>
+      <div class="cc-status">
+        <span>${loading ? 'fetching...' : (count > 0 ? 'tortilgan' : 'tortilmagan')}</span>
+        <span class="count ${count > 0 ? 'loaded' : 'zero'}">${count}</span>
+      </div>
+    `;
+    grid.appendChild(card);
+  }
+
+  document.getElementById('stats').innerHTML = `Jami: <strong>${totalCount()}</strong> ta yozuv`;
+  document.getElementById('results-count').textContent = `${totalCount()} ta yozuv`;
+}
+
+// ----------------------------------------------------------------------------
+// UI — natijalar jadvali
+// ----------------------------------------------------------------------------
+
+function renderResults() {
+  const body = document.getElementById('results-body');
+  const banks = allBanks();
+  if (banks.length === 0) {
+    body.innerHTML = `<div class="empty-state">
+      Hali hech qaysi davlat tortilmagan. Yuqoridagi kartochkalarda
+      <em>Tortish</em> tugmasini bosing yoki <em>Hammasini tortish</em>.
+    </div>`;
+    return;
+  }
+
+  // Davlatlar bo'yicha guruhlash
+  let html = '';
+  for (const [code, c] of Object.entries(COUNTRIES)) {
+    const list = state.banks[code];
+    if (list.length === 0) continue;
+    html += `
+      <h3 style="font-size: 1.3rem; margin-top: 2rem; margin-bottom: 0.75rem; color: var(--ink-soft); font-style: italic;">
+        ${c.name} <span style="font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--amber);">— ${list.length} ta</span>
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:30%">Nom</th>
+            <th>INN/STIR</th>
+            <th>BIK/SWIFT</th>
+            <th>Litsenziya</th>
+            <th>Website</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+    for (const b of list) {
+      const bicSwift = [b.bik, b.swift].filter(x => x).join(' / ');
+      const lic = [b.license_no, b.license_date].filter(x => x).join(' · ');
+      const website = b.website
+        ? `<a href="${b.website.startsWith('http') ? b.website : 'https://' + b.website}" target="_blank" rel="noopener" style="color: var(--amber)">${b.website}</a>`
+        : '<span style="color:var(--rule)">—</span>';
+      html += `
+        <tr>
+          <td>${escapeHtml(b.name)}</td>
+          <td class="mono">${b.inn || '<span style="color:var(--rule)">—</span>'}</td>
+          <td class="mono">${bicSwift || '<span style="color:var(--rule)">—</span>'}</td>
+          <td class="mono">${lic || '<span style="color:var(--rule)">—</span>'}</td>
+          <td class="mono">${website}</td>
+        </tr>
+      `;
+    }
+    html += '</tbody></table>';
+  }
+
+  // Raw JSON viewer
+  html += `
+    <details>
+      <summary>Xom JSON ko'rish (${banks.length} ta yozuv)</summary>
+      <pre>${escapeHtml(JSON.stringify(banks, null, 2))}</pre>
+    </details>
+  `;
+
+  body.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ----------------------------------------------------------------------------
+// Export
+// ----------------------------------------------------------------------------
+
+function exportJson() {
+  const data = allBanks();
+  download(
+    JSON.stringify(data, null, 2),
+    `banks_central_asia_${dateStamp()}.json`,
+    'application/json'
+  );
+  log(`JSON yuklab olindi (${data.length} ta yozuv)`, 'success');
+}
+
+function exportCsv() {
+  const data = allBanks();
+  if (data.length === 0) {
+    log('Eksport uchun ma\'lumot yo\'q', 'warn');
+    return;
+  }
+  const fields = ['country', 'name', 'inn', 'bik', 'swift', 'license_no', 'license_date',
+                  'address', 'phone', 'email', 'website', 'source_url'];
+  const escape = v => {
+    const s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = [fields.join(',')];
+  for (const b of data) rows.push(fields.map(f => escape(b[f])).join(','));
+  // BOM Excel uchun
+  download('\ufeff' + rows.join('\n'), `banks_central_asia_${dateStamp()}.csv`, 'text/csv');
+  log(`CSV yuklab olindi (${data.length} ta yozuv)`, 'success');
+}
+
+async function exportClipboard() {
+  const data = allBanks();
+  try {
+    await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+    log(`Clipboard'ga ko'chirildi (${data.length} ta yozuv)`, 'success');
+  } catch (e) {
+    log(`Clipboard xato: ${e.message}`, 'error');
+  }
+}
+
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function dateStamp() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// ----------------------------------------------------------------------------
+// Manual paste modal
+// ----------------------------------------------------------------------------
+
+function openManual(code) {
+  state.manualTarget = code;
+  document.getElementById('modal-url').textContent = COUNTRIES[code].listUrl;
+  document.getElementById('modal-html').value = '';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  state.manualTarget = null;
+}
+
+function parseManual() {
+  const code = state.manualTarget;
+  const html = document.getElementById('modal-html').value;
+  if (!code || !html.trim()) {
+    log('HTML kiritilmadi', 'warn');
+    return;
+  }
+  try {
+    const banks = PARSERS[code](html, COUNTRIES[code].listUrl);
+    if (banks.length === 0) {
+      log(`${code}: HTML'da bank topilmadi`, 'warn');
+    } else {
+      // Mavjudlariga qo'shamiz (replace emas, append — manual ko'p marta yopiq)
+      state.banks[code] = [...state.banks[code], ...banks];
+      log(`${code}: ${banks.length} ta yozuv qo'shildi (manual)`, 'success');
+    }
+    closeModal();
+    renderCards();
+    renderResults();
+  } catch (e) {
+    log(`Manual parse xato: ${e.message}`, 'error');
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Yordamchi
+// ----------------------------------------------------------------------------
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ----------------------------------------------------------------------------
+// Event handlers
+// ----------------------------------------------------------------------------
+
+document.addEventListener('click', e => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  const code = btn.dataset.code;
+  if (action === 'fetch') loadCountry(code);
+  if (action === 'manual') openManual(code);
+});
+
+document.getElementById('fetch-all').addEventListener('click', loadAll);
+document.getElementById('clear-all').addEventListener('click', clearAll);
+document.getElementById('export-json').addEventListener('click', exportJson);
+document.getElementById('export-csv').addEventListener('click', exportCsv);
+document.getElementById('export-clipboard').addEventListener('click', exportClipboard);
+document.getElementById('modal-parse').addEventListener('click', parseManual);
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target.id === 'modal-overlay') closeModal();
+});
+
+// Date in masthead
+document.getElementById('date-line').textContent = new Date().toLocaleDateString('en-GB', {
+  day: '2-digit', month: 'short', year: 'numeric'
+}).toUpperCase();
+
+// Init
+renderCards();
+renderResults();
+</script>
+
+</body>
+</html>
